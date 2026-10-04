@@ -1,10 +1,13 @@
-# AMD Radeon: the HIP backend (gfx1100, gfx1101, gfx1200, gfx1201, gfx1030)
+# AMD Radeon: the HIP backend (gfx1100, gfx1101, gfx1151, gfx1200, gfx1201, gfx1030)
 
 Strata runs on AMD Radeon cards through its HIP backend, the same engine as on NVIDIA compiled for AMD. This page
 covers the build on Linux (on Windows a ready-made engine, see [Windows](#windows)) for the RX 7900 XT / XTX (RDNA3, gfx1100) and the
 RX 9070 / 9070 XT / Radeon AI PRO R9700 (RDNA4, gfx1201; see [RDNA4](#rdna4-gfx1201)). The RX 7800 XT / 7700 XT
 (gfx1101) and the RX 9060 XT (gfx1200) were validated by their owners (see [Community-validated
-cards](#community-validated-cards)); the RX 6800 / 6900 series (RDNA2, gfx1030) builds and runs too, reported by a community machine and not yet validated by the maintainers (see [RDNA2](#rdna2-gfx1030)). Setup chooses it by itself on a PC with no NVIDIA card Strata can use (`--backend hip` on a PC with both); the
+cards](#community-validated-cards)). Radeon 8060S / 8050S (RDNA 3.5, gfx1151) is supported and model-tested on Linux
+(see [gfx1151](#rdna-35-gfx1151)). The RX
+6800 / 6900 series (RDNA2, gfx1030) builds and runs too, reported by a community machine and not yet validated by
+the maintainers (see [RDNA2](#rdna2-gfx1030)). Setup chooses it by itself on a PC with no NVIDIA card Strata can use (`--backend hip` on a PC with both); the
 install steps for users are in [INSTALL.md](INSTALL.md#amd-cards). gfx906 (Instinct MI50 / MI60, Radeon VII; wave64) has a separate
 opt-in build, see [gfx906](#gfx906-instinct-mi50--mi60-radeon-vii-wave64-built-from-source). Other AMD architectures and mixed
 AMD/NVIDIA execution in one run are not supported.
@@ -19,21 +22,21 @@ This does not claim bit-identical model answers across backends. See
 
 ## Install with setup (recommended)
 
-On Linux with an RX 7900 XT / XTX, RX 7800 XT / 7700 XT, RX 9060 XT, RX 9070 / 9070 XT or Radeon AI PRO R9700 and
-the kernel's amdgpu driver (no ROCm install needed):
+On Linux with an RX 7900 XT / XTX, RX 7800 XT / 7700 XT, Radeon 8060S / 8050S, RX 9060 XT, RX 9070 / 9070 XT or
+Radeon AI PRO R9700 and the kernel's amdgpu driver (no ROCm install needed):
 
 ```sh
 ./setup.sh --backend hip
 ```
 
-- **Detection:** setup finds the card through the kernel's KFD topology. Integrated Radeon GPUs are listed as not
-  supported. On a PC without an NVIDIA card Strata can use, `--backend hip` is chosen automatically.
-- **ROCm:** a system ROCm 7 in `/opt/rocm` (or `$ROCM_PATH`) with hipcc and hipBLAS is used when present. Otherwise
-  (or when it is older than 7.0) ROCm is installed into `.venv` from AMD's TheRock wheels (~10 GB, no sudo), pinned
-  to the version this backend was tested with, from the card family's index: `gfx110X-dgpu` for gfx1100 / gfx1101,
-  `gfx120X-all` for gfx1200 / gfx1201, `gfx103X-all` for gfx1030 (`STRATA_ROCM_VERSION` /
-  `STRATA_ROCM_INDEX` override them; the gfx1030 index is not checked to carry the pinned version: a system
-  ROCm 7 is the tested path there).
+- **Detection:** setup finds the card through the kernel's KFD topology. The gfx1151 Radeon 8060S / 8050S is the
+  supported integrated exception: setup reads its GTT pool and labels it shared GPU memory. Other integrated Radeon
+  GPUs are listed as not supported. On a PC without an NVIDIA card Strata can use, `--backend hip` is chosen automatically.
+- **ROCm:** a system ROCm 7 or newer in `/opt/rocm` (or `$ROCM_PATH`) with hipcc and hipBLAS is used when present.
+  Otherwise ROCm is installed into `.venv` from AMD's current multi-architecture TheRock wheels (~10 GB, no sudo),
+  pinned to the version this backend was tested with. Setup selects each card through its `device-gfx*` package
+  extra. `STRATA_ROCM_VERSION` and `STRATA_ROCM_INDEX` override the pin and index; an old per-family custom index is
+  still accepted, but can supply only the family it contains.
 - **Engine:** compiled on your PC for the card's architecture (10-20 minutes, once; again after a `git pull` that
   changes it, or when you pick a card of another architecture). This needs a C++ compiler and git
   (`sudo apt install build-essential git`).
@@ -44,9 +47,8 @@ the kernel's amdgpu driver (no ROCm install needed):
 - **Several cards:** setup takes one card (the one with the most VRAM, or `--gpu N`) unless you name more:
   `./setup.sh --backend hip --gpus 1,0` splits the model's layers across them, the first one the main card (numbers
   as setup lists them; `--gpus all` = every supported card, the most VRAM first). Every chosen card must be one of the
-  architectures above; the engine is compiled for each of them (cards of two families, e.g. gfx1100 + gfx1201, need
-  a system ROCm 7: AMD's wheels hold one family). A split pays only when no single card holds the model's experts
-  (see RDNA4 below).
+  architectures above; the engine is compiled for each of them. Current multi-architecture wheels can supply cards
+  from different families. A split pays only when no single card holds the model's experts (see RDNA4 below).
 - **Limits for now:** images only through the CPU encoder (`--vision cpu`, 0.1.32). Setup does not offer the tuning
   (calibration) on AMD yet: its controls are being checked on HIP one at a time (#566). Since 0.1.39 a tuning run by
   hand (`./setup.sh --calibrate`) is saved for the AMD card it ran on and reused when setup runs again. The Monitor
@@ -134,7 +136,7 @@ cmake -S . -B build-hip \
 cmake --build build-hip --target strata -j2
 ```
 
-`CMAKE_HIP_ARCHITECTURES` is `gfx1100`, `gfx1101`, `gfx1200`, `gfx1201`, or a list such as `"gfx1100;gfx1201"`
+`CMAKE_HIP_ARCHITECTURES` is `gfx1100`, `gfx1101`, `gfx1151`, `gfx1200`, `gfx1201`, or a list such as `"gfx1100;gfx1201"`
 (one binary for both). gfx1102 (the same wave32, 64 KiB LDS and dot4 instruction) builds with a warning: it passed
 ctest (#192) but no model run has been reported; so does gfx1030 (RDNA2: the older `v_dot4_i32_i8`, a community run in #311). At startup the engine and `strata-device` compare each GPU they use
 (`gcnArchName` up to the `:` feature suffix) with the architectures the binary was compiled for, and require
@@ -200,6 +202,51 @@ compositor fails with "Failed to pin framebuffer with error -12".
 
 The installer supports this backend (see "Install with setup" above). Images run through the CPU encoder for now (`--vision cpu`).
 Setup installs one AMD card, or several with `--gpus` (the engine's layer split; see RDNA4 below).
+
+## RDNA 3.5 (gfx1151)
+
+Radeon 8060S / 8050S is an APU: the GPU and CPU use the same physical RAM. Setup reads the large GTT pool rather
+than the small firmware VRAM carveout, labels it shared GPU memory, and does not add that number to system RAM when
+deciding whether a model fits. The engine also caps automatic expert-cache sizing by currently available host RAM,
+leaving 4 GiB for the OS and request-time CPU work. This avoids treating 116 GiB of GPU-addressable memory as another
+116 GiB independent of the machine's RAM.
+
+Measured on a Radeon 8060S (`gfx1151`, 116.0 GiB shared pool, wave32), with the ROCm 7.13.99004 TheRock tree in
+`/opt/rocm-7.13`:
+
+- the complete engine and test targets compile for `gfx1151`, including native IQ experts and HIP MMQ;
+- `strata-device --list-devices` and `--selftest` pass, with driver and runtime 71399004;
+- 58 of 65 registered tests pass and four skip normally. The other three need model fixtures absent on that machine
+  (`ple_parity`, `expert_parity`, `pool_test`); no GPU test failed. Plain hipBLAS prefill, MMQ prefill, native
+  `v_dot4_i32_iu8`, mapped memory, cache staging, handoff and the Q2 signed-zero test pass;
+- hipBLASLt is present, but there is no gfx1151 tuning table yet, so its table-driven test skips and Strata uses
+  plain hipBLAS for dense prompt projections.
+
+Retested on the same Radeon 8060S with the latest nightly from
+`https://nightly.repo.amd.com/rocm/whl-next/`, installed as
+`rocm[libraries,devel,device-gfx1151]`. Its `bin/hipconfig` reports HIP `7.17.26392-0000000`, and `bin/rocminfo`
+reports HSA runtime 1.21 / extension 1.32. The complete tree compiles for gfx1151, `strata-device` detects the card,
+and 42 of 47 registered tests pass. Four skip normally; the only failure is `ple_parity`, whose external model
+fixture is absent. No GPU test fails. The build used a clean environment rooted at the wheel's
+`_rocm_sdk_devel` directory so an older `/opt/rocm` could not supply its compiler or libraries.
+
+The same build ran the original Qwen3.8-Flash-Next GSQ-RCO Q2_0 model at 131K context on a 128 GB Ryzen AI Max+ 395
+PC. It loaded the 31.64 GiB expert arena at 3.63 GiB/s, cached all 24,576 experts on the 116 GiB shared GPU pool,
+and served a correct OpenAI-compatible answer. One 23-token prompt measured 91.6 prompt tok/s; its 30-token answer
+measured 39.9 tok/s, with 15 of 30 MTP draft tokens accepted. Further warm requests produced 30 tokens at 41.9 tok/s
+and two 100-token capped replies at 46.2 and 62.0 tok/s. A reasoning-enabled request then completed naturally after
+1,921 tokens in 41 seconds (47.8 tok/s); its live average stayed around 47.6-48.9 tok/s through most of the run. Dense
+prompt GEMMs used plain hipBLAS because there is no gfx1151 tuning table for the installed hipBLASLt 1.5.0. Windows
+is not included in this validation: the ready-made Windows HIP archive is not built with gfx1151 yet.
+
+Do not use TheRock `7.14.0a20260612` on gfx1151. The complete Strata tree compiles with it, but both its own
+`rocminfo` and `strata-device` segfault in `rocr::AMD::GpuAgent::InitDma()` during `hsa_init`, before a kernel can
+run. This is AMD's known [TheRock #5763](https://github.com/ROCm/TheRock/issues/5763) regression, introduced after
+the June 8 nightly and reproduced by AMD's gfx1151 test fleet in
+[TheRock #5779](https://github.com/ROCm/TheRock/issues/5779). Replacing only that build's `libhsa-runtime64.so.1`
+with the working ROCm 7.13 library makes `strata-device --selftest` and the same 58 non-fixture tests pass, which
+isolates the failure to the 7.14 HSA runtime; mixing releases is useful as a diagnosis, not the recommended install.
+Use the tested current multi-architecture wheels, the tested ROCm 7.13 tree, or the last-good June 8 legacy build.
 
 ## RDNA4 (gfx1201)
 

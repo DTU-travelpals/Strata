@@ -3206,6 +3206,28 @@ int main(int argc, char** argv) {
     if (o.expert_cache < 0) {
         size_t free_b = 0, total_b = 0;
         cudaMemGetInfo(&free_b, &total_b);
+#if defined(STRATA_USE_HIP) && !defined(_WIN32)
+        // An APU's "VRAM" is system RAM. hipMemGetInfo reports the whole GPU-addressable GTT pool and does not
+        // subtract ordinary CPU allocations (including Strata's host expert arena), so sizing the cache from that
+        // number alone can ask the OOM killer for nearly all RAM. Cap it at currently available host memory with
+        // 4 GiB left for the OS and request-time CPU work. Discrete cards keep the normal independent-VRAM path.
+        cudaDeviceProp apu_prop{};
+        int apu_dev = 0;
+        if (cudaGetDevice(&apu_dev) == cudaSuccess &&
+            cudaGetDeviceProperties(&apu_prop, apu_dev) == cudaSuccess && apu_prop.integrated) {
+            strata::core::detail::HostMemory hm{};
+            if (strata::core::detail::host_available_memory(hm)) {
+                constexpr uint64_t host_headroom = 4ull << 30;
+                const uint64_t host_free = hm.available > host_headroom ? hm.available - host_headroom : 0;
+                if (host_free < free_b) {
+                    std::fprintf(stderr, "strata generate: integrated AMD GPU shares system RAM: limiting the expert "
+                                         "cache's %.2f GiB device-free figure to %.2f GiB of host memory\n",
+                                 (double) free_b / 1073741824.0, (double) host_free / 1073741824.0);
+                    free_b = (size_t) host_free;
+                }
+            }
+        }
+#endif
         // Plan v0.3 P5: the batched prompt path's chunk buffers are allocated later, so they are reserved here -
         // under WDDM an over-subscribed allocation does not fail, it pages to system memory and crawls.
         // (with borrowing - the default with a profile - the prompt path lends cache slots instead; `pf_borrow` is
