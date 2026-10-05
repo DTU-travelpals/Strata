@@ -1,0 +1,32 @@
+[
+ {
+  "length": "32k",
+  "depth": 10,
+  "error": "HTTP Error 400: Bad Request"
+ },
+ {
+  "length": "32k",
+  "depth": 50,
+  "error": "HTTP Error 400: Bad Request"
+ },
+ {
+  "length": "32k",
+  "depth": 90,
+  "error": "HTTP Error 400: Bad Request"
+ },
+ {
+  "length": "128k",
+  "depth": 10,
+  "error": "HTTP Error 400: Bad Request"
+ },
+ {
+  "length": "128k",
+  "depth": 50,
+  "error": "HTTP Error 400: Bad Request"
+ },
+ {
+  "length": "128k",
+  "depth": 90,
+  "error": "HTTP Error 400: Bad Request"
+ }
+]

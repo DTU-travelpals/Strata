@@ -1,0 +1,263 @@
+[
+  {
+    "label": "llama-server-UD-Q4_K_XL",
+    "kind": "warmup",
+    "trial": 0,
+    "wall_s": 46.28107668600023,
+    "metrics": {
+      "prompt_tokens": 15.0,
+      "reused": 0.0,
+      "fresh": 15.0,
+      "prefill_ms": 566.74,
+      "prefill_tps": 26.47,
+      "generated": 2.0,
+      "decode_ms": 158.97,
+      "decode_tps": 6.29
+    },
+    "usage": {
+      "completion_tokens": 2,
+      "prompt_tokens": 15,
+      "total_tokens": 17,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "finish_reason": "stop",
+    "message": {
+      "role": "assistant",
+      "content": "READY"
+    }
+  },
+  {
+    "label": "llama-server-UD-Q4_K_XL",
+    "kind": "fresh",
+    "trial": 1,
+    "wall_s": 18.671065665999777,
+    "metrics": {
+      "prompt_tokens": 4210.0,
+      "reused": 0.0,
+      "fresh": 4210.0,
+      "prefill_ms": 12925.68,
+      "prefill_tps": 325.71,
+      "generated": 128.0,
+      "decode_ms": 5733.14,
+      "decode_tps": 22.15
+    },
+    "usage": {
+      "completion_tokens": 128,
+      "prompt_tokens": 4210,
+      "total_tokens": 4338,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "finish_reason": "length",
+    "message": {
+      "role": "assistant",
+      "content": "This source code defines a collection of 140 exported JavaScript functions, named `rule0` through `rule139`, each implementing a specific conditional arithmetic transformation on an input value `x`. Every function follows an identical logical pattern: it checks if the input `x` is strictly equal to the integer corresponding to its name (e.g., `rule5` checks for `5`); if true, it returns `x` incremented by one more than that index (i.e., `x + (index + 1)`), and if false, it returns `x` decremented by the index itself (i.e"
+    }
+  },
+  {
+    "label": "llama-server-UD-Q4_K_XL",
+    "kind": "followup",
+    "trial": 1,
+    "wall_s": 9.67397264200008,
+    "metrics": {
+      "prompt_tokens": 4447.0,
+      "reused": 4206.0,
+      "fresh": 241.0,
+      "prefill_ms": 1643.36,
+      "prefill_tps": 146.65,
+      "generated": 128.0,
+      "decode_ms": 8009.13,
+      "decode_tps": 15.86
+    },
+    "usage": {
+      "completion_tokens": 128,
+      "prompt_tokens": 4447,
+      "total_tokens": 4575,
+      "prompt_tokens_details": {
+        "cached_tokens": 4206
+      }
+    },
+    "finish_reason": "length",
+    "message": {
+      "role": "assistant",
+      "content": "The most critical boundary case is the **strict equality check against the function\u2019s index**, which creates a discontinuity in behavior that fails silently for any input not exactly matching that integer. For example, `rule0(0)` returns `1` (the \"special\" branch), but `rule0(-1)` or `rule0(1)` both return `-1` and `1` respectively via the \"default\" branch (`x - 0`), meaning the function is not monotonic and has a single-point anomaly. The smallest useful regression test must verify this exact transition: calling `ruleN(N)` should yield `2"
+    }
+  },
+  {
+    "label": "llama-server-UD-Q4_K_XL",
+    "kind": "fresh",
+    "trial": 2,
+    "wall_s": 30.97222746999978,
+    "metrics": {
+      "prompt_tokens": 8830.0,
+      "reused": 0.0,
+      "fresh": 8830.0,
+      "prefill_ms": 25610.49,
+      "prefill_tps": 344.78,
+      "generated": 128.0,
+      "decode_ms": 5352.75,
+      "decode_tps": 23.73
+    },
+    "usage": {
+      "completion_tokens": 128,
+      "prompt_tokens": 8830,
+      "total_tokens": 8958,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "finish_reason": "length",
+    "message": {
+      "role": "assistant",
+      "content": "This source code defines a collection of 280 exported JavaScript functions, named `rule0` through `rule279`, each implementing a specific conditional arithmetic transformation on an input number `x`. Every function follows an identical logical pattern: it checks if the input `x` is strictly equal to the integer embedded in its function name (e.g., `rule5` checks for `5`). If the condition is true, the function returns `x` incremented by one more than that integer (i.e., `x + (n + 1)`); otherwise, it returns `x` decremented by that integer (i"
+    }
+  },
+  {
+    "label": "llama-server-UD-Q4_K_XL",
+    "kind": "followup",
+    "trial": 2,
+    "wall_s": 8.164250198000445,
+    "metrics": {
+      "prompt_tokens": 9067.0,
+      "reused": 8826.0,
+      "fresh": 241.0,
+      "prefill_ms": 1638.74,
+      "prefill_tps": 147.06,
+      "generated": 128.0,
+      "decode_ms": 6513.69,
+      "decode_tps": 19.5
+    },
+    "usage": {
+      "completion_tokens": 128,
+      "prompt_tokens": 9067,
+      "total_tokens": 9195,
+      "prompt_tokens_details": {
+        "cached_tokens": 8826
+      }
+    },
+    "finish_reason": "length",
+    "message": {
+      "role": "assistant",
+      "content": "The most critical boundary case is the **exact integer match** (e.g., `rule5(5)`), which triggers the \"true\" branch (`x + 6`), whereas any other value\u2014including adjacent integers like `4` or `6`, zero, negative numbers, or non-integers\u2014falls into the \"false\" branch (`x - 5`). This creates a discontinuity where the function\u2019s behavior flips abruptly based on strict equality (`===`). A particularly dangerous edge case is **zero** when passed to `rule0`: since `0 === 0` is true, it returns `1`, but if zero"
+    }
+  },
+  {
+    "label": "llama-server-UD-Q4_K_XL",
+    "kind": "fresh",
+    "trial": 3,
+    "wall_s": 17.178173016000073,
+    "metrics": {
+      "prompt_tokens": 4210.0,
+      "reused": 0.0,
+      "fresh": 4210.0,
+      "prefill_ms": 12008.85,
+      "prefill_tps": 350.57,
+      "generated": 128.0,
+      "decode_ms": 5162.91,
+      "decode_tps": 24.6
+    },
+    "usage": {
+      "completion_tokens": 128,
+      "prompt_tokens": 4210,
+      "total_tokens": 4338,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "finish_reason": "length",
+    "message": {
+      "role": "assistant",
+      "content": "This source code defines a collection of 140 exported JavaScript functions, named `rule0` through `rule139`, each implementing a specific conditional arithmetic transformation on a single numeric input `x`. Every function follows an identical logical pattern: it checks if the input `x` is strictly equal to the integer corresponding to its name (e.g., `rule5` checks for `5`); if true, it returns the input incremented by one more than that index (i.e., `x + (index + 1)`), and if false, it returns the input decremented by the index itself (i.e.,"
+    }
+  },
+  {
+    "label": "llama-server-UD-Q4_K_XL",
+    "kind": "followup",
+    "trial": 3,
+    "wall_s": 7.325717329999861,
+    "metrics": {
+      "prompt_tokens": 4447.0,
+      "reused": 4206.0,
+      "fresh": 241.0,
+      "prefill_ms": 1551.78,
+      "prefill_tps": 155.31,
+      "generated": 128.0,
+      "decode_ms": 5765.5,
+      "decode_tps": 22.03
+    },
+    "usage": {
+      "completion_tokens": 128,
+      "prompt_tokens": 4447,
+      "total_tokens": 4575,
+      "prompt_tokens_details": {
+        "cached_tokens": 4206
+      }
+    },
+    "finish_reason": "length",
+    "message": {
+      "role": "assistant",
+      "content": "The most critical boundary case is the **exact match condition** where `x` equals the function\u2019s index (e.g., calling `rule5(5)`), which triggers the \"true\" branch (`x + 6`) rather than the default subtraction path; this is distinct from near-misses like `rule5(4)` or `rule5(6)`, which both fall into the false branch and return `x - 5`. A particularly subtle edge case involves **zero**: while `rule0(0)` correctly returns `1` (since `0 === 0` is true), any other rule called with zero"
+    }
+  },
+  {
+    "label": "llama-server-UD-Q4_K_XL",
+    "kind": "fresh",
+    "trial": 4,
+    "wall_s": 30.170002091000242,
+    "metrics": {
+      "prompt_tokens": 8830.0,
+      "reused": 0.0,
+      "fresh": 8830.0,
+      "prefill_ms": 25202.93,
+      "prefill_tps": 350.36,
+      "generated": 128.0,
+      "decode_ms": 4957.92,
+      "decode_tps": 25.62
+    },
+    "usage": {
+      "completion_tokens": 128,
+      "prompt_tokens": 8830,
+      "total_tokens": 8958,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "finish_reason": "length",
+    "message": {
+      "role": "assistant",
+      "content": "This source code defines a collection of 280 exported JavaScript functions, named `rule0` through `rule279`, each implementing a specific conditional arithmetic transformation on an input number `x`. Every function follows an identical logical pattern: it checks if the input `x` is strictly equal to the integer embedded in its name (e.g., `rule5` checks for `5`); if true, it returns `x` incremented by one more than that integer (e.g., `5 + 6 = 11`), and if false, it returns `x` decremented by that same integer (e"
+    }
+  },
+  {
+    "label": "llama-server-UD-Q4_K_XL",
+    "kind": "followup",
+    "trial": 4,
+    "wall_s": 8.572024920000331,
+    "metrics": {
+      "prompt_tokens": 9067.0,
+      "reused": 8826.0,
+      "fresh": 241.0,
+      "prefill_ms": 1613.42,
+      "prefill_tps": 149.37,
+      "generated": 128.0,
+      "decode_ms": 6948.29,
+      "decode_tps": 18.28
+    },
+    "usage": {
+      "completion_tokens": 128,
+      "prompt_tokens": 9067,
+      "total_tokens": 9195,
+      "prompt_tokens_details": {
+        "cached_tokens": 8826
+      }
+    },
+    "finish_reason": "length",
+    "message": {
+      "role": "assistant",
+      "content": "The most critical boundary case is the **exact match condition** where `x` equals the function\u2019s index (e.g., calling `rule5(5)`), which triggers the unique \"increment\" branch (`x + 1`) rather than the default \"decrement\" branch (`x - 0`). This behavior is highly sensitive to strict equality (`===`), meaning that if a caller passes a string `\"5\"` or a float `5.0` (which is numerically equal but type-different in some contexts, though `===` handles numeric types consistently here, it fails for strings), the function will incorrectly fall into"
+    }
+  }
+]
