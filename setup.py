@@ -1345,25 +1345,26 @@ def cuda_lib_dirs(toolkit=13):
 # ------------------------------------------------------------------------------------------------ AMD
 # The RX 7900 XT / XTX (gfx1100) and the RX 9070 series / Radeon AI PRO R9700 (gfx1201) on Linux, through the HIP
 # backend (docs/AMD_HIP.md); the RX 7800 XT / 7700 XT (gfx1101, #254) and the RX 9060 XT (gfx1200, #256) were run by
-# their owners; the RX 6800 / 6900 series (gfx1030, #311) and the RX 6700 XT (gfx1031, #524) run but are unvalidated.  There is no ready-made AMD engine: ROCm comes from AMD's TheRock Python wheels into .venv (no sudo;
-# a system ROCm 7 in /opt/rocm is used when it has hipcc and hipBLAS) and the engine is compiled here for the cards.
+# their owners; Radeon 8060S (gfx1151) passed the Linux GPU tests and a Q2_0 model run; the RX 6800 / 6900
+# series (gfx1030, #311) and the RX 6700 XT (gfx1031, #524) run but are unvalidated.  There is no ready-made AMD engine: ROCm comes from AMD's TheRock Python wheels into .venv (no sudo;
+# a system ROCm 7 or newer in /opt/rocm is used when it has hipcc and hipBLAS) and the engine is compiled here for
+# the cards.
 # No images yet.
-ROCM_INDEXES = {"gfx1100": "https://rocm.nightlies.amd.com/v2/gfx110X-dgpu/",   # TheRock's wheels per GPU family
-                "gfx1101": "https://rocm.nightlies.amd.com/v2/gfx110X-dgpu/",
-                "gfx1200": "https://rocm.nightlies.amd.com/v2/gfx120X-all/",
-                "gfx1201": "https://rocm.nightlies.amd.com/v2/gfx120X-all/",
-                "gfx1030": "https://rocm.nightlies.amd.com/v2/gfx103X-all/",
-                "gfx1031": "https://rocm.nightlies.amd.com/v2/gfx103X-all/"}
-ROCM_VERSION = os.environ.get("STRATA_ROCM_VERSION", "7.10.0a20251120")   # what Strata's HIP build was tested with
+ROCM_MULTIARCH_INDEX = "https://nightly.repo.amd.com/rocm/whl-next/"
+ROCM_INDEXES = {arch: ROCM_MULTIARCH_INDEX for arch in
+                ("gfx1100", "gfx1101", "gfx1151", "gfx1200", "gfx1201", "gfx1030", "gfx1031")}
+ROCM_VERSION = os.environ.get("STRATA_ROCM_VERSION", "10.2.0a20261004")   # tested below on gfx1151
 ROCM_SYSTEM_MIN = (7, 0)       # an older system ROCm is passed over for the wheels (gfx1201 needs ROCm 6.4 or newer)
-AMD_ARCHS = ("gfx1100", "gfx1101", "gfx1200", "gfx1201", "gfx1030", "gfx1031")
+AMD_ARCHS = ("gfx1100", "gfx1101", "gfx1151", "gfx1200", "gfx1201", "gfx1030", "gfx1031")
 AMD_NAMES = {"gfx1100": "AMD Radeon RX 7900 series (gfx1100)",   # when sysfs has no product name
              "gfx1101": "AMD Radeon RX 7800 XT / 7700 XT (gfx1101)",
+             "gfx1151": "AMD Radeon 8060S / 8050S (gfx1151)",
              "gfx1200": "AMD Radeon RX 9060 series (gfx1200)",
              "gfx1201": "AMD Radeon RX 9070 series / AI PRO R9700 (gfx1201)",
              "gfx1030": "AMD Radeon RX 6800 / 6900 series (gfx1030)",
              "gfx1031": "AMD Radeon RX 6700 XT series (gfx1031)"}
-AMD_CARDS = ("the RX 7900 XT / XTX (gfx1100), RX 7800 XT / 7700 XT (gfx1101), RX 9060 XT (gfx1200) and "
+AMD_CARDS = ("the RX 7900 XT / XTX (gfx1100), RX 7800 XT / 7700 XT (gfx1101), Radeon 8060S / 8050S (gfx1151), "
+             "RX 9060 XT (gfx1200) and "
              "RX 9070 / 9070 XT / Radeon AI PRO R9700 (gfx1201), and the RX 6800 / 6900 series (gfx1030) and RX 6700 XT "
              "(gfx1031, #524), both unvalidated")
 
@@ -1372,9 +1373,17 @@ def rocm_index(arch):
     return os.environ.get("STRATA_ROCM_INDEX") or ROCM_INDEXES[arch]
 
 
+def rocm_wheel_spec(archs, index):
+    """TheRock changed from one family per index to device extras in ROCm 10.1. Keep an old custom index usable."""
+    extras = ["libraries", "devel"]
+    if index.rstrip("/") == ROCM_MULTIARCH_INDEX.rstrip("/"):
+        extras += ["device-" + arch for arch in sorted(set(archs))]
+    return f"rocm[{','.join(extras)}]=={ROCM_VERSION}"
+
+
 def amd_gpus(sysfs="/sys"):
     """AMD GPUs from the kernel's KFD topology (the amdgpu driver; no ROCm needed), numbered as HIP numbers them:
-    the GPU nodes in order, the CPU nodes skipped.  Integrated GPUs are listed too (not supported).
+    the GPU nodes in order, the CPU nodes skipped.  Integrated GPUs are listed too; gfx1151 is supported.
     sysfs: the tree to read (tools/test_setup_amd.py passes a mocked one).  Windows: amd_gpus_win."""
     if WIN:
         return amd_gpus_win()
@@ -1395,8 +1404,13 @@ def amd_gpus(sysfs="/sys"):
             continue
         arch = f"gfx{ver // 10000}{(ver // 100) % 100:x}{ver % 100:x}"
         dev = Path(sysfs) / f"class/drm/renderD{props.get('drm_render_minor', '')}/device"
+        shared = arch == "gfx1151"
         try:
-            vram = int((dev / "mem_info_vram_total").read_text()) / 2 ** 30
+            # Strix Halo exposes only its small firmware carveout as VRAM; HIP allocations use the large GTT/shared
+            # pool instead (hipDeviceProp::totalGlobalMem reports the same figure).  Keep the fact that it is shared
+            # with the CPU so callers do not describe it as independent discrete VRAM.
+            mem_file = dev / ("mem_info_gtt_total" if shared else "mem_info_vram_total")
+            vram = int(mem_file.read_text()) / 2 ** 30
         except (OSError, ValueError):
             vram = 0.0
         try:
@@ -1406,7 +1420,7 @@ def amd_gpus(sysfs="/sys"):
         if name == f"AMD Radeon ({arch})" and arch in AMD_NAMES:
             name = AMD_NAMES[arch]
         found.append({"index": len(found), "name": name, "vram_gb": vram, "arch": arch, "driver": "amdgpu",
-                      "vendor": "amd"})
+                      "vendor": "amd", **({"shared_memory": True} if shared else {})})
     return found
 
 
@@ -1768,48 +1782,74 @@ def rocm_dev_missing(sysroot: Path) -> list:
     return [name for name, paths in need.items() if not any(p.is_file() for p in paths)]
 
 
+def rocm_runtime_works(root: Path) -> bool:
+    """Whether this ROCm can initialize its own HSA runtime.  A compiler-only tree may have no rocminfo."""
+    probe = root / "bin" / "rocminfo"
+    if not probe.is_file():
+        return True
+    env = os.environ.copy()
+    env.update({"ROCM_PATH": str(root), "HIP_PATH": str(root)})
+    env["LD_LIBRARY_PATH"] = os.pathsep.join([str(root / "lib"), env.get("LD_LIBRARY_PATH", "")]).rstrip(os.pathsep)
+    try:
+        return subprocess.run([str(probe)], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                              timeout=30).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
 def rocm_root(archs):
     """ROCm for compiling and running the HIP engine for `archs` (one arch or a list: the cards of a layer split):
-    (root, library folders).  A system ROCm 7 with hipcc, hipBLAS and the HIP development files (#446), else AMD's
-    TheRock wheels (ROCM_VERSION, from the card family's index) installed into .venv."""
+    (root, library folders).  A system ROCm 7 or newer with hipcc, hipBLAS and the HIP development files (#446),
+    else AMD's TheRock wheels (ROCM_VERSION) installed into .venv."""
     archs = [archs] if isinstance(archs, str) else list(archs)
     sysroot = Path(os.environ.get("ROCM_PATH") or "/opt/rocm")
     if (sysroot / "bin" / "hipcc").exists() and list((sysroot / "lib").glob("libhipblas.so*")):
         ver = rocm_version(sysroot)
         missing = rocm_dev_missing(sysroot)
-        if (ver is None or ver >= ROCM_SYSTEM_MIN) and not missing:
+        runtime_bad = "gfx1151" in archs and not rocm_runtime_works(sysroot)
+        if (ver is None or ver >= ROCM_SYSTEM_MIN) and not missing and not runtime_bad:
             return sysroot, [str(sysroot / "lib")]
-        if ver is not None and ver < ROCM_SYSTEM_MIN:
+        if runtime_bad:
+            warn(f"the ROCm in {sysroot} cannot initialize gfx1151 (its rocminfo failed or crashed): using AMD's "
+                 "tested wheels in .venv instead")
+        elif ver is not None and ver < ROCM_SYSTEM_MIN:
             warn(f"the ROCm in {sysroot} is {ver[0]}.{ver[1]}; Strata needs {ROCM_SYSTEM_MIN[0]}.{ROCM_SYSTEM_MIN[1]} "
                  "or newer: using AMD's wheels in .venv instead")
         else:                                          # #446: a runtime-only ROCm (no -dev packages): cmake would fail
             warn(f"the ROCm in {sysroot} has no HIP development files ({', '.join(missing)}): using AMD's wheels in "
                  ".venv instead (or install them, e.g. AMD's amdrocm-core-dev package for your ROCm and card)")
     indexes = list(dict.fromkeys(rocm_index(a) for a in archs))
-    if len(indexes) > 1:                               # TheRock's wheels hold one GPU family's libraries
-        fail(f"cards of two GPU families ({', '.join(archs)}) need a system ROCm 7 (in /opt/rocm): AMD's Python "
-             "wheels come per family", "install ROCm 7 system-wide, or use cards of one family (--gpu N for one card)")
+    if len(indexes) > 1:                               # only possible with legacy/custom per-family indexes
+        fail(f"cards of two GPU families ({', '.join(archs)}) need one ROCm package index",
+             "use AMD's current multi-architecture index, install ROCm system-wide, or choose one card (--gpu N)")
     index = indexes[0]
+    wanted_archs = sorted(set(archs))
     stamp = Path(sys.prefix) / ".strata-rocm.json"
     have = json.loads(stamp.read_text()) if stamp.exists() else {}
-    if have.get("version") != ROCM_VERSION or have.get("index") != index:
+    if (have.get("version") != ROCM_VERSION or have.get("index") != index or
+            not set(wanted_archs) <= set(have.get("archs", []))):
         say(f"  Installing ROCm {ROCM_VERSION} for AMD GPUs into .venv (AMD's TheRock wheels, ~10 GB, no sudo) ...")
         pip = [sys.executable, "-m", "pip", "install", "--quiet", "--disable-pip-version-check", "--index-url", index]
-        if have.get("version") == ROCM_VERSION:        # the same version for another GPU family: its own libraries
+        if have.get("version") == ROCM_VERSION and have.get("index") != index:  # switching a legacy family index
             run(pip + ["--force-reinstall", "--no-deps", f"rocm=={ROCM_VERSION}"])
-        run(pip + [f"rocm[libraries,devel]=={ROCM_VERSION}"])
-        stamp.write_text(json.dumps({"version": ROCM_VERSION, "index": index}))
+        run(pip + [rocm_wheel_spec(wanted_archs, index)])
+        stamp.write_text(json.dumps({"version": ROCM_VERSION, "index": index, "archs": wanted_archs}))
     sdk = Path(sys.executable).parent / "rocm-sdk"
     root = Path(out([str(sdk), "path", "--root"]).strip())
     if not (root / "llvm" / "bin" / "clang++").exists():
         fail(f"ROCm was installed but its compiler is missing ({root})",
              f"remove {stamp} and run this again; or install ROCm 7 system-wide")
-    # the card family's libraries only (gfx120X-all -> _rocm_sdk_libraries_gfx120X_all): another family's
-    # libhipblaslt.so first on the path would have no kernels for this card
-    family = "_rocm_sdk_libraries_" + index.rstrip("/").rsplit("/", 1)[-1].replace("-", "_")
+    if "gfx1151" in archs and not rocm_runtime_works(root):
+        fail(f"ROCm {ROCM_VERSION} was installed but its HSA runtime cannot initialize gfx1151",
+             "use the tested ROCm version from setup (remove STRATA_ROCM_VERSION), or another ROCm build whose "
+             "rocminfo runs on this card; TheRock 7.14.0a20260609 through 20260612 have a known HSA crash")
+    # Legacy indexes used _rocm_sdk_libraries_<family>; current multi-arch wheels use _rocm_sdk_libraries plus
+    # rocm-sdk-device-gfx* kernel packs. root/lib is the devel package's merged view in either layout.
+    family = ("_rocm_sdk_libraries" if index.rstrip("/") == ROCM_MULTIARCH_INDEX.rstrip("/") else
+              "_rocm_sdk_libraries_" + index.rstrip("/").rsplit("/", 1)[-1].replace("-", "_"))
     dirs = [str(root / "lib")]
     for sp in {Path(p) for p in sys.path if p.endswith("site-packages")}:
-        libs = sorted(sp.glob("_rocm_sdk_libraries_*"))
+        libs = sorted(sp.glob("_rocm_sdk_libraries*"))
         libs = [d for d in libs if d.name.lower() == family.lower()] or libs
         dirs += [str(d / "lib") for d in libs if (d / "lib").is_dir()]
     ok(f"ROCm: {root}")
@@ -2376,6 +2416,11 @@ def low_ram_fits(model, ram, vram_gb) -> bool:
     """In the low-RAM mode: the experts the GPU does not hold fit the RAM left beside the rest (as file cache)."""
     arena = MODELS[model]["arena_gb"]
     return ram - 6 + max(0.0, vram_gb - 5) >= arena
+
+
+def independent_vram_gb(gpu) -> float:
+    """Memory that adds to system RAM for fit estimates.  An APU's GPU pool is the same physical RAM."""
+    return 0.0 if gpu.get("shared_memory") else gpu.get("vram_gb", 0.0)
 
 
 def low_ram_one_gpu_why(model, ram, choice, sel=None) -> list[str]:
@@ -3744,7 +3789,9 @@ def main() -> int:
         say("  Your AMD GPUs:" if amd else "  No AMD GPU found (" + ("Windows lists no AMD display adapter)." if WIN
                                                                    else "the amdgpu driver's KFD topology is empty)."))
         for g in amd:
-            say(f"    GPU {g['index']}: {g['name']}, {g['vram_gb']:.0f} GB VRAM - " + (amd_problem(g) or "can be used"))
+            memory = "shared GPU memory" if g.get("shared_memory") else "VRAM"
+            say(f"    GPU {g['index']}: {g['name']}, {g['vram_gb']:.0f} GB {memory} - "
+                + (amd_problem(g) or "can be used"))
         usable = [g for g in amd if amd_problem(g) is None]
         if not usable:
             fail("no AMD GPU Strata can use", f"the AMD backend runs on {AMD_CARDS}")
@@ -3767,7 +3814,8 @@ def main() -> int:
         a.gpu = gpu["index"] if len(amd) > 1 else a.gpu
         if multi:
             ok("GPUs: " + " + ".join(gpu_name(x) for x in chosen) + " together (the model's layers are split across them)")
-        ok(f"GPU: {gpu['name']}, {gpu['vram_gb']:.1f} GB VRAM, {gpu['arch']} (AMD: docs/AMD_HIP.md)")
+        memory = "shared GPU memory" if gpu.get("shared_memory") else "VRAM"
+        ok(f"GPU: {gpu['name']}, {gpu['vram_gb']:.1f} GB {memory}, {gpu['arch']} (AMD: docs/AMD_HIP.md)")
     else:
         if not found:
             fail("no NVIDIA GPU found (nvidia-smi did not answer)",
@@ -3797,9 +3845,10 @@ def main() -> int:
     if gpu["vram_gb"] < 11:
         warn("less than 12 GB of VRAM: Strata will run, but most experts stay on the CPU and it will be slow")
     ram = ram_gb()
+    fit_vram = independent_vram_gb(gpu)               # do not count an APU's shared pool a second time
     cpu, avx2, avx512 = cpu_info()
     need = min(d["ram_gb"] for d in MODELS.values())
-    low_ok = low_ram_fits("IQ1_M", ram, gpu["vram_gb"]) and a.low_ram != "off"   # the smallest model, mapped
+    low_ok = low_ram_fits("IQ1_M", ram, fit_vram) and a.low_ram != "off"   # the smallest model, mapped
     if ram < need - 4 and not a.check and not low_ok:
         # every model keeps ALL its experts in RAM (23+ GB); VRAM only holds a copy of the most-used ones, so a
         # bigger GPU does not lower this.  The owner's rule: a stop by default, a risk the user can take (--model
@@ -3845,9 +3894,9 @@ def main() -> int:
                            "read from the SSD" if ram >= d["ram_gb"] else "does not fit")
                 if hip:                                # #429: not run on AMD yet (its prompt kernels are CUDA-only)
                     verdict += " - NVIDIA only so far, untested on AMD"
-            elif low_ram_needed(m, ram) and low_ram_fits(m, ram, gpu["vram_gb"]) and a.low_ram != "off":
-                verdict = (f"fits in the low-RAM mode (the GPU holds ~{100 * low_ram_gpu_share(m, gpu['vram_gb']):.0f}% "
-                           "of its experts, " + ("the rest stays in RAM)" if low_ram_resident(m, ram, gpu["vram_gb"])
+            elif low_ram_needed(m, ram) and low_ram_fits(m, ram, fit_vram) and a.low_ram != "off":
+                verdict = (f"fits in the low-RAM mode (the GPU holds ~{100 * low_ram_gpu_share(m, fit_vram):.0f}% "
+                           "of its experts, " + ("the rest stays in RAM)" if low_ram_resident(m, ram, fit_vram)
                                                  else "the rest is read from the SSD as needed)"))
             say(f"  {m:8s} needs ~{d['ram_gb']} GB RAM: {verdict}")
         say("\nThis PC can run Strata. Run it again without --check to install.")
@@ -3884,9 +3933,9 @@ def main() -> int:
             say(f"  {i}) {m} {d['about']}; download {d['download_gb']:.0f} GB, keeps ~"
                 f"{resident_budget_gib(m, ram)} GB of its {d['arena_gb']:.0f} GB of experts in RAM{fit}")
             continue
-        if low_ram_needed(m, ram) and low_ram_fits(m, ram, gpu["vram_gb"]) and a.low_ram != "off":
-            fit = (f"   <- fits in the low-RAM mode (the GPU holds ~{100 * low_ram_gpu_share(m, gpu['vram_gb']):.0f}%, "
-                   + ("the rest in RAM)" if low_ram_resident(m, ram, gpu["vram_gb"]) else "the rest from the SSD)"))
+        if low_ram_needed(m, ram) and low_ram_fits(m, ram, fit_vram) and a.low_ram != "off":
+            fit = (f"   <- fits in the low-RAM mode (the GPU holds ~{100 * low_ram_gpu_share(m, fit_vram):.0f}%, "
+                   + ("the rest in RAM)" if low_ram_resident(m, ram, fit_vram) else "the rest from the SSD)"))
         say(f"  {i}) {m:8s} {d['about']}; download {d['download_gb']:.0f} GB, uses ~{d['arena_gb']:.0f} GB of RAM{fit}")
     rec = str(names.index("IQ3_XXS") + 1) if ram >= 60 and "IQ3_XXS" in names else "1"
     model = a.model or names[int(ask("Which size?", [str(i) for i in range(1, len(names) + 1)], rec, a.yes)) - 1]
@@ -4015,7 +4064,7 @@ def main() -> int:
     resident = False
     if low_ram:
         arena = MODELS[model]["arena_gb"]
-        vram = gpu["vram_gb"] - (VISION[vision]["reserve_mib"] / 1024 if vision != "none" else 0)
+        vram = fit_vram - (VISION[vision]["reserve_mib"] / 1024 if vision != "none" and fit_vram else 0)
         share = low_ram_gpu_share(model, vram, ctx, kv)
         rest = arena - low_ram_gpu_gb(model, vram, ctx, kv)
         resident = a.low_ram == "resident" or (a.low_ram != "mmap" and low_ram_resident(model, ram, vram, ctx, kv))

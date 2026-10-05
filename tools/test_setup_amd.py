@@ -18,8 +18,9 @@ import setup  # noqa: E402
 
 
 def fake_sysfs(root: Path, nodes: list) -> None:
-    """nodes: (gfx_target_version, simd_count, render_minor, product_name or None, vram_bytes)"""
-    for i, (ver, simd, minor, name, vram) in enumerate(nodes):
+    """nodes: (gfx_target_version, simd_count, render_minor, product_name or None, vram_bytes[, gtt_bytes])"""
+    for i, values in enumerate(nodes):
+        ver, simd, minor, name, vram, *extra = values
         n = root / "class/kfd/kfd/topology/nodes" / str(i)
         n.mkdir(parents=True)
         (n / "properties").write_text(f"cpu_cores_count {0 if simd else 12}\nsimd_count {simd}\n"
@@ -28,6 +29,8 @@ def fake_sysfs(root: Path, nodes: list) -> None:
             d = root / f"class/drm/renderD{minor}/device"
             d.mkdir(parents=True)
             (d / "mem_info_vram_total").write_text(str(vram))
+            if extra:
+                (d / "mem_info_gtt_total").write_text(str(extra[0]))
             if name is not None:
                 (d / "product_name").write_text(name + "\n")
 
@@ -52,33 +55,42 @@ class KfdDetection(unittest.TestCase):
             (110002, 64, 131, None, 8 << 30),                     # gfx1102: listed, not supported
             (100306, 4, 132, None, 512 << 20),                    # an integrated gfx1036: listed, not supported
             (110000, 192, 133, "Radeon RX 7900 XTX", 24 << 30),
+            (110501, 80, 134, "AMD Radeon 8060S Graphics", 512 << 20, 116 << 30),
         ])
         g = setup.amd_gpus(str(self.root))
-        self.assertEqual([x["arch"] for x in g], ["gfx1101", "gfx1200", "gfx1201", "gfx1102", "gfx1036", "gfx1100"])
-        self.assertEqual([x["index"] for x in g], [0, 1, 2, 3, 4, 5])          # HIP numbers: GPU nodes only
+        self.assertEqual([x["arch"] for x in g],
+                         ["gfx1101", "gfx1200", "gfx1201", "gfx1102", "gfx1036", "gfx1100", "gfx1151"])
+        self.assertEqual([x["index"] for x in g], [0, 1, 2, 3, 4, 5, 6])       # HIP numbers: GPU nodes only
         self.assertEqual(g[0]["name"], setup.AMD_NAMES["gfx1101"])
         self.assertEqual(g[1]["name"], setup.AMD_NAMES["gfx1200"])
         self.assertEqual(g[2]["name"], "AMD Radeon AI PRO R9700")
         self.assertEqual(g[3]["name"], "AMD Radeon (gfx1102)")
         self.assertAlmostEqual(g[2]["vram_gb"], 32.0)
+        self.assertAlmostEqual(g[6]["vram_gb"], 116.0)
+        self.assertTrue(g[6]["shared_memory"])
         ok = [x["arch"] for x in g if setup.amd_problem(x) is None]
-        self.assertEqual(ok, ["gfx1101", "gfx1200", "gfx1201", "gfx1100"])
+        self.assertEqual(ok, ["gfx1101", "gfx1200", "gfx1201", "gfx1100", "gfx1151"])
         self.assertIn("gfx1102", setup.amd_problem(g[3]))
         self.assertIn("gfx1036", setup.amd_problem(g[4]))
 
     def test_no_kfd(self):
         self.assertEqual(setup.amd_gpus(str(self.root)), [])
 
-    def test_rocm_index_per_family(self):
+    def test_rocm_multiarch_index_and_device_extras(self):
         for arch in setup.AMD_ARCHS:
             self.assertIn(arch, setup.ROCM_INDEXES)
-        self.assertTrue(setup.ROCM_INDEXES["gfx1101"].endswith("/gfx110X-dgpu/"))
-        self.assertTrue(setup.ROCM_INDEXES["gfx1200"].endswith("/gfx120X-all/"))
-        self.assertEqual(setup.ROCM_INDEXES["gfx1101"], setup.ROCM_INDEXES["gfx1100"])
-        self.assertEqual(setup.ROCM_INDEXES["gfx1200"], setup.ROCM_INDEXES["gfx1201"])
+            self.assertEqual(setup.ROCM_INDEXES[arch], setup.ROCM_MULTIARCH_INDEX)
+        spec = setup.rocm_wheel_spec(["gfx1201", "gfx1151", "gfx1151"], setup.ROCM_MULTIARCH_INDEX)
+        self.assertEqual(spec, f"rocm[libraries,devel,device-gfx1151,device-gfx1201]=={setup.ROCM_VERSION}")
+        legacy = setup.rocm_wheel_spec(["gfx1151"], "https://example.invalid/v2/gfx1151/")
+        self.assertEqual(legacy, f"rocm[libraries,devel]=={setup.ROCM_VERSION}")
         # #524: the RX 6700 XT (gfx1031) takes the RDNA2 wheels, as the RX 6800 / 6900 (gfx1030)
         self.assertEqual(setup.ROCM_INDEXES["gfx1031"], setup.ROCM_INDEXES["gfx1030"])
         self.assertIsNone(setup.amd_problem({"arch": "gfx1031"}))
+
+    def test_shared_gpu_memory_is_not_extra_ram(self):
+        self.assertEqual(setup.independent_vram_gb({"vram_gb": 116.0, "shared_memory": True}), 0.0)
+        self.assertEqual(setup.independent_vram_gb({"vram_gb": 24.0}), 24.0)
 
 
 class GpuLists(unittest.TestCase):
@@ -107,23 +119,16 @@ class GpuLists(unittest.TestCase):
             with self.assertRaises(SystemExit, msg=text):
                 setup.amd_parse_gpus(text, self.AMD)
 
-    def test_wheels_hold_one_family(self):
-        with tempfile.TemporaryDirectory() as d:        # no system ROCm there: the wheels would be needed
-            old = setup.os.environ.get("ROCM_PATH")
-            setup.os.environ["ROCM_PATH"] = d
-            try:
-                with self.assertRaises(SystemExit):
-                    setup.rocm_root(["gfx1100", "gfx1201"])
-            finally:
-                if old is None:
-                    del setup.os.environ["ROCM_PATH"]
-                else:
-                    setup.os.environ["ROCM_PATH"] = old
+    def test_current_wheels_hold_multiple_families(self):
+        indexes = list(dict.fromkeys(setup.rocm_index(a) for a in ("gfx1100", "gfx1201")))
+        self.assertEqual(indexes, [setup.ROCM_MULTIARCH_INDEX])
+        self.assertIn("device-gfx1100,device-gfx1201", setup.rocm_wheel_spec(
+            ["gfx1100", "gfx1201"], indexes[0]))
 
     def test_runtime_only_system_rocm_falls_back_to_the_wheels(self):
         """#446: a system ROCm 7 with hipcc and libhipblas but no HIP development files (no hip-lang CMake package, no
-        hip_runtime.h) is not used for the build: a warning says what is missing and the wheels path follows (here
-        it stops at the two-family check, which only the wheels path makes); with the files it is used as before."""
+        hip_runtime.h) is not used for the build: a warning says what is missing and the wheels path follows; with
+        the files it is used as before."""
         said = []
         setup.say = lambda msg="": said.append(msg)          # tearDown puts the real one back
         with tempfile.TemporaryDirectory() as d:
@@ -133,12 +138,12 @@ class GpuLists(unittest.TestCase):
                                "#define ROCM_VERSION_MAJOR 7\n#define ROCM_VERSION_MINOR 14\n")):
                 (sysroot / rel).parent.mkdir(parents=True, exist_ok=True)
                 (sysroot / rel).write_text(text)
-            with mock.patch.dict(setup.os.environ, {"ROCM_PATH": d}):
+            with mock.patch.dict(setup.os.environ, {"ROCM_PATH": d}), \
+                    mock.patch.object(setup, "run", side_effect=SystemExit):
                 with self.assertRaises(SystemExit):
                     setup.rocm_root(["gfx1100", "gfx1201"])
                 self.assertIn(f"the ROCm in {sysroot} has no HIP development files (lib/cmake/hip-lang/hip-lang-"
                               "config.cmake, include/hip/hip_runtime.h): using AMD's wheels", "\n".join(said))
-                self.assertIn("two GPU families", "\n".join(said))
                 for lib in ("lib64", "lib"):                 # either place CMake looks
                     with self.subTest(lib=lib):
                         cfg = sysroot / lib / "cmake/hip-lang/hip-lang-config.cmake"
@@ -153,6 +158,26 @@ class GpuLists(unittest.TestCase):
                         self.assertEqual(setup.rocm_root(["gfx1100", "gfx1201"]), (sysroot, [str(sysroot / "lib")]))
                         cfg.unlink()
                         (sysroot / "include/hip/hip_runtime.h").unlink()
+
+    def test_gfx1151_crashing_system_runtime_falls_back_to_wheels(self):
+        """TheRock 7.14.0a20260609-12: rocminfo crashes in HSA InitDma on gfx1151; do not build against it."""
+        said = []
+        setup.say = lambda msg="": said.append(msg)          # tearDown puts the real one back
+        with tempfile.TemporaryDirectory() as d:
+            sysroot = Path(d)
+            for rel, text in (("bin/hipcc", ""), ("bin/rocminfo", ""), ("lib/libhipblas.so.3", ""),
+                              ("lib/cmake/hip-lang/hip-lang-config.cmake", ""),
+                              ("include/hip/hip_runtime.h", ""),
+                              ("include/rocm-core/rocm_version.h",
+                               "#define ROCM_VERSION_MAJOR 7\n#define ROCM_VERSION_MINOR 14\n")):
+                (sysroot / rel).parent.mkdir(parents=True, exist_ok=True)
+                (sysroot / rel).write_text(text)
+            with mock.patch.dict(setup.os.environ, {"ROCM_PATH": d}), \
+                    mock.patch.object(setup.subprocess, "run", return_value=mock.Mock(returncode=139)), \
+                    mock.patch.object(setup, "run", side_effect=SystemExit):
+                with self.assertRaises(SystemExit):
+                    setup.rocm_root(["gfx1151", "gfx1201"])
+            self.assertIn("rocminfo failed or crashed", "\n".join(said))
 
     def test_build_for_every_arch(self):
         """build_engine_hip compiles for the set of the chosen cards' archs and records it in BUILD.json."""
@@ -317,7 +342,8 @@ class WindowsDetection(unittest.TestCase):
             ver = ".".join(map(str, setup.WIN_HIP_MIN_ENGINE))
             good = {"source": "prebuilt", "backend": "hip", "version": ver, "archs": ["gfx1100", "gfx1201"],
                     "lib_dirs": ["rocm/bin"]}
-            with mock.patch.object(setup, "ROOT", root), mock.patch.object(setup, "say", lambda *a, **k: None), \
+            with mock.patch.object(setup, "ROOT", root), mock.patch.object(setup, "EXE", "strata.exe"), \
+                    mock.patch.object(setup, "say", lambda *a, **k: None), \
                     mock.patch.object(setup, "ok", lambda *a: None), mock.patch.object(setup, "warn", lambda *a: None):
                 publish({**good, "archs": ["gfx1100"]})
                 self.assertIsNone(setup.get_prebuilt_hip(str(pub) + "/", {"arch": "gfx1201"}))

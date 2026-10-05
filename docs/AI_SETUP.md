@@ -43,8 +43,9 @@ To check by hand:
 Requirements (details: [INSTALL.md](INSTALL.md#what-you-need)):
 
 - **GPU:** NVIDIA RTX 20, 30, 40 or 50 series, or AMD Radeon RX 7900 XT / XTX, RX 7800 XT / 7700 XT, RX 9060 XT,
-  RX 9070 / 9070 XT, Radeon AI PRO R9700, RX 6800 / 6900 series; 12 GB of VRAM or more (an NVIDIA card with 8 GB runs,
-  slowly). GTX 10 series and older, and integrated GPUs, are not supported; Pascal / Volta cards (P40, V100) and some
+  RX 9070 / 9070 XT, Radeon AI PRO R9700, RX 6800 / 6900 series, or Radeon 8060S / 8050S on Linux; 12 GB of VRAM or
+  shared GPU memory (an NVIDIA card with 8 GB runs, slowly). GTX 10 series and older, and integrated GPUs other than
+  gfx1151, are not supported; Pascal / Volta cards (P40, V100) and some
   older AMD cards have experimental paths the user opts into ([OLDER_GPUS.md](OLDER_GPUS.md)).
 - **Driver:** NVIDIA 580 or newer. AMD on Linux: the kernel's amdgpu driver; on Windows: a current AMD Adrenalin
   driver. If the driver is missing or too old, tell the user to update it (NVIDIA App / nvidia.com/drivers, or AMD
@@ -112,8 +113,8 @@ Notes:
 - **Linux:** setup uses `sudo apt` (or dnf/pacman) to install Python with venv if it is missing, and on AMD may need
   `build-essential` and `git`. You cannot type the user's password: if a `sudo` step is needed, ask the user to run it
   (e.g. `sudo apt install python3-venv build-essential git`) and then rerun setup.
-- **AMD on Linux:** setup installs ROCm into `.venv` (~10 GB, no sudo) unless a system ROCm 7 exists, and compiles the
-  engine for the card (10-20 minutes, once).
+- **AMD on Linux:** setup installs its tested ROCm into `.venv` (~10 GB, no sudo) unless a usable system ROCm 7 or
+  newer exists, and compiles the engine for the card (10-20 minutes, once).
 - **AMD on Windows (new in 0.1.34):** setup downloads the ready-made AMD engine (~550 MB, ROCm included) - nothing
   is compiled and only the AMD driver is needed. Before the model download it runs `engine\strata-device.exe
   --list-devices`; if that does not list the card, the driver is the problem (tell the user to update AMD Software).
