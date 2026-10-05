@@ -1,0 +1,263 @@
+[
+  {
+    "label": "strata-UD-Q4_K_XL",
+    "kind": "warmup",
+    "trial": 0,
+    "wall_s": 0.46398527000019385,
+    "metrics": {
+      "prompt_tokens": 15.0,
+      "reused": 0.0,
+      "fresh": 15.0,
+      "prefill_ms": 283.0,
+      "prefill_tps": 53.0,
+      "generated": 2.0,
+      "decode_ms": 164.0,
+      "decode_tps": 12.2
+    },
+    "usage": {
+      "prompt_tokens": 15,
+      "completion_tokens": 2,
+      "total_tokens": 17,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "finish_reason": "stop",
+    "message": {
+      "role": "assistant",
+      "content": "READY"
+    }
+  },
+  {
+    "label": "strata-UD-Q4_K_XL",
+    "kind": "fresh",
+    "trial": 1,
+    "wall_s": 12.41036949699992,
+    "metrics": {
+      "prompt_tokens": 4210.0,
+      "reused": 0.0,
+      "fresh": 4210.0,
+      "prefill_ms": 8251.0,
+      "prefill_tps": 510.2,
+      "generated": 128.0,
+      "decode_ms": 4143.0,
+      "decode_tps": 30.9
+    },
+    "usage": {
+      "prompt_tokens": 4210,
+      "completion_tokens": 128,
+      "total_tokens": 4338,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "finish_reason": "length",
+    "message": {
+      "role": "assistant",
+      "content": "This source code defines a collection of 140 exported JavaScript functions, named `rule0` through `rule139`, each implementing a specific conditional arithmetic transformation on a single numeric input `x`. Every function follows an identical logical pattern: it checks if the input `x` is strictly equal to the integer `n` corresponding to the function's index (e.g., `rule5` checks for `5`); if the condition is true, the function returns `x + (n + 1)`, effectively adding the next consecutive integer to the input; if the condition is false, it returns `x - n"
+    }
+  },
+  {
+    "label": "strata-UD-Q4_K_XL",
+    "kind": "followup",
+    "trial": 1,
+    "wall_s": 5.228958421999778,
+    "metrics": {
+      "prompt_tokens": 4451.0,
+      "reused": 4203.0,
+      "fresh": 248.0,
+      "prefill_ms": 1383.0,
+      "prefill_tps": 179.3,
+      "generated": 128.0,
+      "decode_ms": 3803.0,
+      "decode_tps": 33.7
+    },
+    "usage": {
+      "prompt_tokens": 4451,
+      "completion_tokens": 128,
+      "total_tokens": 4579,
+      "prompt_tokens_details": {
+        "cached_tokens": 4203
+      }
+    },
+    "finish_reason": "length",
+    "message": {
+      "role": "assistant",
+      "content": "The most relevant boundary case is the **exact integer match** (e.g., `rule5(5)`), which triggers the unique \"addition\" branch (`x + 6`), distinguishing it from the default \"subtraction\" branch (`x - 5`) that applies to all other inputs, including zero, negatives, and non-matching integers. The smallest useful regression test is a single assertion verifying this specific behavior, such as `expect(rule5(5)).toBe(11)`, because it confirms the core conditional logic works; however, this test implicitly assumes the caller provides a **number** type, as passing"
+    }
+  },
+  {
+    "label": "strata-UD-Q4_K_XL",
+    "kind": "fresh",
+    "trial": 2,
+    "wall_s": 21.748150514998997,
+    "metrics": {
+      "prompt_tokens": 8830.0,
+      "reused": 0.0,
+      "fresh": 8830.0,
+      "prefill_ms": 18228.0,
+      "prefill_tps": 484.4,
+      "generated": 128.0,
+      "decode_ms": 3485.0,
+      "decode_tps": 36.7
+    },
+    "usage": {
+      "prompt_tokens": 8830,
+      "completion_tokens": 128,
+      "total_tokens": 8958,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "finish_reason": "length",
+    "message": {
+      "role": "assistant",
+      "content": "This source code defines a collection of 280 exported JavaScript functions, named `rule0` through `rule279`, each implementing a specific conditional arithmetic transformation on a single numeric input `x`. Every function follows an identical logical pattern: it checks if the input `x` is strictly equal to the integer `N` embedded in the function's name (e.g., `rule5` checks for `5`); if the condition is true, the function returns `x + (N + 1)`, effectively incrementing the input by one more than its own index; if the condition is false, it returns `"
+    }
+  },
+  {
+    "label": "strata-UD-Q4_K_XL",
+    "kind": "followup",
+    "trial": 2,
+    "wall_s": 5.394040548000703,
+    "metrics": {
+      "prompt_tokens": 9071.0,
+      "reused": 8823.0,
+      "fresh": 248.0,
+      "prefill_ms": 1390.0,
+      "prefill_tps": 178.4,
+      "generated": 128.0,
+      "decode_ms": 3960.0,
+      "decode_tps": 32.3
+    },
+    "usage": {
+      "prompt_tokens": 9071,
+      "completion_tokens": 128,
+      "total_tokens": 9199,
+      "prompt_tokens_details": {
+        "cached_tokens": 8823
+      }
+    },
+    "finish_reason": "length",
+    "message": {
+      "role": "assistant",
+      "content": "The most relevant boundary case is the **exact integer match** for any given rule `N`, specifically highlighting `rule0` where the input `x === 0` triggers the special branch `x + 1` (returning `1`), whereas any other input (including negative integers or non-matching positive integers) falls into the `else` branch `x - N`. This distinction is critical because `rule0` is the only function where the \"match\" branch adds a positive value (`+1`) while the \"non-match\" branch subtracts zero (`-0`, which is effectively identity), making `0`"
+    }
+  },
+  {
+    "label": "strata-UD-Q4_K_XL",
+    "kind": "fresh",
+    "trial": 3,
+    "wall_s": 12.822884360999524,
+    "metrics": {
+      "prompt_tokens": 4210.0,
+      "reused": 0.0,
+      "fresh": 4210.0,
+      "prefill_ms": 9097.0,
+      "prefill_tps": 462.8,
+      "generated": 128.0,
+      "decode_ms": 3704.0,
+      "decode_tps": 34.6
+    },
+    "usage": {
+      "prompt_tokens": 4210,
+      "completion_tokens": 128,
+      "total_tokens": 4338,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "finish_reason": "length",
+    "message": {
+      "role": "assistant",
+      "content": "This source code defines a collection of 140 exported JavaScript functions, named `rule0` through `rule139`, each implementing a specific conditional arithmetic transformation on a single numeric input `x`. Every function follows an identical logical pattern: it checks if the input `x` is strictly equal to the integer `n` corresponding to the function's index (e.g., `rule5` checks for `5`); if the condition is true, the function returns `x + (n + 1)`, effectively incrementing the input by one more than its own index; if the condition is false, it returns `"
+    }
+  },
+  {
+    "label": "strata-UD-Q4_K_XL",
+    "kind": "followup",
+    "trial": 3,
+    "wall_s": 5.319639908000681,
+    "metrics": {
+      "prompt_tokens": 4451.0,
+      "reused": 4203.0,
+      "fresh": 248.0,
+      "prefill_ms": 1396.0,
+      "prefill_tps": 177.7,
+      "generated": 128.0,
+      "decode_ms": 3899.0,
+      "decode_tps": 32.8
+    },
+    "usage": {
+      "prompt_tokens": 4451,
+      "completion_tokens": 128,
+      "total_tokens": 4579,
+      "prompt_tokens_details": {
+        "cached_tokens": 4203
+      }
+    },
+    "finish_reason": "length",
+    "message": {
+      "role": "assistant",
+      "content": "The most relevant boundary case is the **exact integer match** (e.g., `rule0(0)`), which triggers the unique \"increment\" branch (`x + n + 1`) rather than the default \"decrement\" branch (`x - n`). This is critical because it is the only scenario where the function\u2019s output deviates from the simple linear transformation `x - n`, making it the primary discriminator for correctness. The smallest useful regression test is a single assertion per function verifying this specific boundary: `expect(ruleN(N)).toBe(N + N + 1)`. This test is minimal yet sufficient because it validates the"
+    }
+  },
+  {
+    "label": "strata-UD-Q4_K_XL",
+    "kind": "fresh",
+    "trial": 4,
+    "wall_s": 22.034492793000027,
+    "metrics": {
+      "prompt_tokens": 8830.0,
+      "reused": 0.0,
+      "fresh": 8830.0,
+      "prefill_ms": 18298.0,
+      "prefill_tps": 482.6,
+      "generated": 128.0,
+      "decode_ms": 3697.0,
+      "decode_tps": 34.6
+    },
+    "usage": {
+      "prompt_tokens": 8830,
+      "completion_tokens": 128,
+      "total_tokens": 8958,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "finish_reason": "length",
+    "message": {
+      "role": "assistant",
+      "content": "This source code defines a collection of 280 exported JavaScript functions, named `rule0` through `rule279`, each implementing a specific conditional arithmetic transformation on a single numeric input `x`. Every function follows an identical logical pattern: it checks if the input `x` is strictly equal to the integer `N` embedded in the function's name (e.g., `rule5` checks for `5`); if the condition is true, the function returns `x + (N + 1)`, effectively incrementing the input by one more than its own index; if the condition is false, it returns `"
+    }
+  },
+  {
+    "label": "strata-UD-Q4_K_XL",
+    "kind": "followup",
+    "trial": 4,
+    "wall_s": 5.053914137999527,
+    "metrics": {
+      "prompt_tokens": 9071.0,
+      "reused": 8823.0,
+      "fresh": 248.0,
+      "prefill_ms": 1407.0,
+      "prefill_tps": 176.2,
+      "generated": 128.0,
+      "decode_ms": 3610.0,
+      "decode_tps": 35.5
+    },
+    "usage": {
+      "prompt_tokens": 9071,
+      "completion_tokens": 128,
+      "total_tokens": 9199,
+      "prompt_tokens_details": {
+        "cached_tokens": 8823
+      }
+    },
+    "finish_reason": "length",
+    "message": {
+      "role": "assistant",
+      "content": "The most relevant boundary case is the **exact integer match** for any given rule `N`, where `x === N`. This is the only path that triggers the \"special\" behavior (`x + N + 1`); all other inputs, including `N+1`, `N-1`, `0`, negative numbers, or non-integers, fall into the default branch (`x - N`). For example, in `rule5`, `x=5` returns `11` (5+6), while `x=4` or `x=6` returns `-1` or `1` respectively (4"
+    }
+  }
+]
