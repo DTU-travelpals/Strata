@@ -17,6 +17,7 @@ import argparse
 import json
 import random
 import sys
+import os
 import time
 import urllib.error
 import urllib.request
@@ -51,8 +52,8 @@ def haystack(n_chars: int) -> str:
     return "".join(parts)[:n_chars]
 
 
-def ask(url: str, key: str, prompt: str, timeout: float) -> tuple[str, int, float]:
-    body = {"model": "strata", "max_tokens": 40, "temperature": 0,
+def ask(url: str, model: str, key: str, prompt: str, timeout: float) -> tuple[str, int, float]:
+    body = {"model": model, "max_tokens": 40, "temperature": 0,
             "chat_template_kwargs": {"enable_thinking": False},
             "messages": [{"role": "user", "content": prompt}]}
     headers = {"Content-Type": "application/json"}
@@ -68,6 +69,7 @@ def ask(url: str, key: str, prompt: str, timeout: float) -> tuple[str, int, floa
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--url", default="http://127.0.0.1:8080")
+    ap.add_argument("--model", default="strata")
     ap.add_argument("--api-key", default="")
     ap.add_argument("--lengths", default="32k", help="comma-separated, e.g. 1k,32k,128k,262k")
     ap.add_argument("--depths", default="10,50,90", help="where the code word sits, percent of the text")
@@ -96,7 +98,7 @@ def main() -> int:
             prompt = (text[:cut] + needle + text[cut:] +
                       "\n\nWhat is the secret code word mentioned in the text above? Reply with the code word only.")
             try:
-                answer, n, secs = ask(a.url, a.api_key, prompt, a.timeout)
+                answer, n, secs = ask(a.url, a.model, a.api_key, prompt, a.timeout)
             except (OSError, urllib.error.HTTPError) as e:
                 print(f"{L:>5} depth {d:>3}%: request failed ({e})")
                 rows.append({"length": L, "depth": d, "error": str(e)})
