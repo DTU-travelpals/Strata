@@ -11,6 +11,12 @@ const kfmt = (n) => (n == null ? "–" : n >= 1000 ? `${fmt(n / 1000, n >= 10000
 // a context size: 32768 -> "32K" (powers of two), else like kfmt
 const ctxfmt = (n) => (n && n % 1024 === 0 ? `${fmt(n / 1024)}K` : kfmt(n));
 const gb = (b, d = 1) => (b == null ? "–" : fmt(b / 1073741824, d));   // memory: binary GB, as Windows shows it
+function elapsed(s) {
+  s = Math.max(0, Number(s) || 0);
+  if (s < 10) return `${fmt(s, 1)}s`;
+  const whole = Math.round(s), h = Math.floor(whole / 3600), m = Math.floor((whole % 3600) / 60), sec = whole % 60;
+  return `${h ? `${h}h ` : ""}${m ? `${m}min ` : ""}${sec}s`;
+}
 
 const store = {
   get(k, d) { try { const v = localStorage.getItem("strata." + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -787,7 +793,7 @@ async function send() {
   if (projectionLoaded()) body.experimental_speed_projection = !!settings.esp;
   if (settings.mcp !== false && mcpInfo.tools > 0) body.strata_mcp = true;   // this server may run MCP tools for it
 
-  let firstAt = null, thinkStart = null, usage = null, frame = 0;
+  let firstAt = null, thinkStart = null, usage = null, timings = null, frame = 0;
   const paint = () => { frame = 0; updateAssistant(el, m, true); scrollDown(); };
   try {
     const r = await fetch("v1/chat/completions", {method: "POST", headers: headers(true), body: JSON.stringify(body),
@@ -815,6 +821,7 @@ async function send() {
         try { j = JSON.parse(data); } catch (e) { continue; }
         if (j.error) throw new Error(j.error.message || "the engine reported an error");
         if (j.usage) usage = j.usage;
+        if (j.timings) timings = j.timings;
         if (j.strata_mcp) onTool(m, j.strata_mcp);
         const d = (j.choices && j.choices[0] && j.choices[0].delta) || {};
         const lastTool = m.tools && m.tools.length ? m.tools[m.tools.length - 1] : null;   // a new round after a tool
@@ -840,8 +847,13 @@ async function send() {
   if (thinkStart && m.thinkSecs == null) m.thinkSecs = (performance.now() - thinkStart) / 1000;
   const n = usage ? usage.completion_tokens : null;
   if (n && firstAt) {
-    const secs = (performance.now() - firstAt) / 1000;
-    m.meta = `${fmt(n)} tokens${secs > 0.25 ? ` · ${fmt(n / secs, 1)} tok/s` : ""}${m.stopped ? " · stopped" : ""}` +
+    // The engine's clock excludes prompt processing, browser/network delays and rendering, matching llama.cpp's
+    // generation footer. An MCP turn can contain several engine requests but exposes only the last one's timing;
+    // use the whole browser-observed turn there instead of pairing unlike counts and times.
+    const engineN = Number(timings && timings.predicted_n), engineMs = Number(timings && timings.predicted_ms);
+    const exact = engineN === Number(n) && engineMs > 0;
+    const secs = exact ? engineMs / 1000 : (performance.now() - firstAt) / 1000;
+    m.meta = `${fmt(n)} tokens${secs > 0.25 ? ` · ${elapsed(secs)} · ${fmt(n / secs, 2)} tok/s` : ""}${m.stopped ? " · stopped" : ""}` +
              (projectionLoaded() ? (settings.esp ? " · projection on" : " · projection off") : "");
   } else if (m.stopped) {
     m.meta = "Stopped";

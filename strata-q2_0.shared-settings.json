@@ -1,0 +1,6 @@
+{
+ "reasoning_effort": "low",
+ "temperature": 0.65,
+ "top_p": 0.95,
+ "top_k": 20
+}
