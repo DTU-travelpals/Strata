@@ -17,8 +17,9 @@ What the engine does differently on this chip:
   changes the 6) instead of only `MemFree`, per device, for any integrated GPU on Linux (this applies to a DGX Spark too).
 - **gfx11 matrix cores.** The prompt attention, the block scorer, the prompt GEMMs and the prompt experts have WMMA kernels for
   gfx1100 / 1101 / 1102 / 1150 / 1151. A gfx11 part outside that list (gfx1103, gfx1152) is not given them: it takes the portable path.
-- **The hipBLASLt table** `tools/hip/gfx1151-hipblaslt-100401.txt` (ROCm 7.14.1's hipBLASLt 1.x `100401`), including the prompt shapes
-  at `--prefill 16384` (T 16383 / 16384).
+- **hipBLASLt tables** for ROCm 7.14.1's hipBLASLt 1.4.1 (`tools/hip/gfx1151-hipblaslt-100401.txt`), including the prompt
+  shapes at `--prefill 16384` (T 16383 / 16384), and hipBLASLt 1.5.0 (`tools/hip/gfx1151-hipblaslt-100500.txt`). Setup
+  selects a table only when its version matches the installed library.
 
 ## 1. The toolchain (no root needed)
 

@@ -466,6 +466,11 @@ Shipped tables:
   hipBLAS; with this table a 0.1.38-lineage nightly engine prefills a 131071-token prompt at 1687 tok/s vs 926
   without it (median of 3 clean runs each, greedy; decode unchanged). Per-run data and the calibration command:
   the `2026-10-04-community-rx7900xtx-hipblaslt-100500` folder of PR #745.
+- `gfx1151-hipblaslt-100500.txt`: Radeon 8060S (gfx1151), calibrated with the 2026-10-04 nightly from AMD's
+  multi-architecture `whl-next` index (HIP runtime 7.17.26392, hipBLASLt 1.5.0). The same 16 dense GEMM geometries
+  as the gfx1201 table at T=4096 and T=8192, 32 rows. The verbose smoke test exercised one BF16 and one F16 row,
+  including short beta=1 cases, with all four outputs matching hipBLASEx and `fallbacks=0`. End-to-end prompt speed
+  has not been measured yet.
 - `gfx1201-hipblaslt-100500.txt`: Radeon AI PRO R9700 (gfx1201, 32 GB), calibrated with ROCm 10.2.0a20260914
   (AMD's `gfx120X-all` nightly, hipBLASLt 1.5.0, library build `d3164197`). 16 dense GEMM geometries at T=4096 and
   T=8192, 32 rows. setup uses it only when the installed hipBLASLt reports 1.5.0 (it is found in `/opt/rocm`
