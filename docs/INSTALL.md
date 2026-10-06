@@ -62,8 +62,9 @@ WSL and compiling: [details](DETAILS.md#linux).
 The steps are the same as with NVIDIA: `START-HERE.bat` on Windows, `./setup.sh` on Linux. Setup finds the Radeon
 card and chooses the AMD (HIP) engine by itself on a PC with no NVIDIA card Strata can use; `--backend hip` chooses
 it on a PC that has both. Supported cards: RX 7900 XT / XTX (gfx1100), RX 7800 XT / 7700 XT (gfx1101), RX 9060 XT
-(gfx1200), RX 9070 / 9070 XT and Radeon AI PRO R9700 (gfx1201), and the RX 6800 / 6900 series (gfx1030). Integrated
-Radeon GPUs are listed as not supported.
+(gfx1200), RX 9070 / 9070 XT and Radeon AI PRO R9700 (gfx1201), and the RX 6800 / 6900 series (gfx1030). The Ryzen AI
+Max "Strix Halo" APUs (Radeon 8060S / 8050S / 8040S, gfx1151) are experimental on Linux and Windows; see
+[STRIX_HALO.md](STRIX_HALO.md). Other integrated Radeon GPUs are listed as not supported.
 
 On Linux setup uses a system ROCm 7 when there is one, or installs ROCm into `.venv` from AMD's wheels (~10 GB, no
 sudo), and compiles the engine on your PC for the card (10-20 minutes, once; it needs a C++ compiler and git:
