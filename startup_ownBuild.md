@@ -2,6 +2,15 @@
 
 ## Build with existing models
 
+### setup
+
+```bash
+source ~/rocm-10.1-venv/bin/activate
+./setup.sh --yes --no-start
+```
+
+### Backup
+
 ```bash
 cd /home/daniel/dev/ai/Strata
 
